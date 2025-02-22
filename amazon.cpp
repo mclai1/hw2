@@ -5,9 +5,11 @@
 #include <vector>
 #include <iomanip>
 #include <algorithm>
+#include <queue>
 #include "product.h"
 #include "db_parser.h"
 #include "product_parser.h"
+#include "mydatastore.h"
 #include "util.h"
 
 using namespace std;
@@ -29,7 +31,7 @@ int main(int argc, char* argv[])
      * Declare your derived DataStore object here replacing
      *  DataStore type to your derived type
      ****************/
-    DataStore ds;
+    MyDataStore ds;
 
 
 
@@ -100,10 +102,66 @@ int main(int argc, char* argv[])
                 done = true;
             }
 	    /* Add support for other commands here */
-
-
-
-
+            else if ( cmd == "ADD") {
+                string username;
+                int hit_result_index;
+                // check if the username and indexes were inputted correctly
+                if (ss >> username >> hit_result_index && ds.carts_.find(username) != ds.carts_.end() && hit_result_index > 0 && hit_result_index <= int(hits.size())){
+                    // add the corresponding hit to the cart
+                    ds.carts_.find(convToLower(username))->second.push_back(hits[hit_result_index - 1]);
+                }
+                // print if there is an invalid request
+                else{
+                    cout << "Invalid request" << endl;
+                }
+            }
+            else if ( cmd == "VIEWCART"){
+                string username;
+                // check if the username is inputted correctly and is a valid username
+                if (ss >> username && ds.carts_.find(convToLower(username)) != ds.carts_.end()){
+                    // create a copy of the cart to iterate through
+                    vector<Product*> user_cart = ds.carts_.find(convToLower(username))->second;
+                    // print the cart contents until you reach the end
+                    int i = 1;
+                    while (!user_cart.empty()){
+                        cout << "Hit " << i << endl;
+                        cout << user_cart.front()->displayString() << '\n' << endl;
+                        user_cart.erase(user_cart.begin());
+                        i++;
+                    }
+                }
+                // print if there is an invalid request
+                else{
+                    cout << "Invalid username" << endl;
+                }
+            }
+            else if ( cmd == "BUYCART"){
+                string username;
+                // check if the username is inputted correctly and is a valid username
+                if (ss >> username && ds.carts_.find(convToLower(username)) != ds.carts_.end()){
+                    username = convToLower(username);
+                    // iterate through the products
+                    vector<Product*>& user_cart = ds.carts_.find(username)->second;
+                    int i = 0;
+                    while (i < int (user_cart.size())){
+                        Product* current = user_cart[i];
+                        // if there is stock and the user has enough money, purchase the item, decrease the quantity, deduct the amount, and remove it from the cart
+                        if (current->getQty() > 0 && current->getPrice() <= ds.users_.find(username)->second->getBalance()){
+                            current->subtractQty(1);
+                            ds.users_.find(username)->second->deductAmount(current->getPrice());
+                            user_cart.erase(user_cart.begin() + i);
+                        }
+                        // if there is no stock, go to the next item in the cart
+                        else{
+                            i++;
+                        }
+                    }
+                }
+                // print if there is an invalid username
+                else{
+                    cout << "Invalid username" << endl;
+                }
+            }
             else {
                 cout << "Unknown command" << endl;
             }
